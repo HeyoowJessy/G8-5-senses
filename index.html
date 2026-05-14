@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>5 Senses Battle</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bungee&family=Roboto:wght@900&display=swap');
+
+        * { box-sizing: border-box; user-select: none; touch-action: manipulation; }
+        body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; font-family: 'Roboto', sans-serif; }
+
+        #game-container { position: relative; width: 100vw; height: 100vh; background: #fff; display: flex; }
+
+        .side { flex: 1; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; position: relative; z-index: 10; transition: filter 0.3s; }
+        .side-p1 { background: linear-gradient(135deg, #ff007f 0%, #ff4f9f 100%); }
+        .side-p2 { background: linear-gradient(135deg, #ffa500 0%, #ffcc00 100%); }
+
+        .frozen { filter: grayscale(0.8) brightness(0.6); pointer-events: none; }
+
+        .play-card {
+            background: white; width: 90%; height: 82%; border-radius: 40px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.3); border: 12px solid white;
+        }
+        .side-p1 .play-card { border-color: #ffcc00; }
+        .side-p2 .play-card { border-color: #ff007f; }
+
+        .zigzag {
+            position: absolute; height: 100vh; width: 80px; background: white;
+            clip-path: polygon(100% 0, 0 5%, 100% 10%, 0 15%, 100% 20%, 0 25%, 100% 30%, 0 35%, 100% 40%, 0 45%, 100% 50%, 0 55%, 100% 60%, 0 65%, 100% 70%, 0 75%, 100% 80%, 0 85%, 100% 90%, 0 95%, 100% 100%);
+            left: 50%; transform: translateX(-50%); z-index: 50;
+        }
+
+        .score-tag { font-family: 'Bungee'; font-size: 30px; color: white; margin-bottom: 10px; }
+        
+        .skip-btn {
+            background: #444; color: white; font-family: 'Bungee'; border: none; 
+            padding: 8px 20px; border-radius: 12px; cursor: pointer; margin-bottom: 10px;
+            font-size: 16px; box-shadow: 0 3px #000;
+        }
+        .skip-btn:active { transform: translateY(2px); box-shadow: 0 1px #000; }
+
+        .item-img { max-height: 180px; object-fit: contain; margin-bottom: 10px; }
+        .sentence { font-size: 26px; font-weight: 900; text-align: center; color: #333; padding: 0 20px; }
+        .drop-zone { border-bottom: 6px solid #333; color: #ff007f; min-width: 130px; display: inline-block; text-align: center; height: 40px; vertical-align: bottom; }
+        
+        .drag-box { display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap; justify-content: center; }
+        .word { padding: 12px 18px; background: #333; color: white; border-radius: 50px; cursor: pointer; font-size: 18px; font-family: 'Bungee'; }
+
+        .wrong-x {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            font-size: 250px; color: #ff0000; font-family: 'Bungee';
+            display: none; z-index: 500; pointer-events: none; text-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+
+        .timer-ui {
+            position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+            z-index: 200; background: #333; color: white; padding: 10px 40px;
+            border-radius: 50px; font-family: 'Bungee'; font-size: 50px; border: 5px solid white;
+        }
+
+        #results-screen {
+            position: absolute; inset: 0; background: rgba(0,0,0,0.95);
+            z-index: 1000; display: none; flex-direction: column; align-items: center; justify-content: center;
+            color: white; text-align: center; font-family: 'Bungee';
+        }
+
+        .shaking { animation: shake 0.1s infinite; }
+        @keyframes shake { 0% {transform: translate(3px, 3px);} 50% {transform: translate(-3px, -3px);} 100% {transform: translate(3px, -3px);} }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div class="zigzag"></div>
+    <div class="timer-ui" id="timer-display" style="display:none;">50</div>
+
+    <div class="side side-p1" id="p1-area">
+        <div id="p1-score-ui" class="score-tag" style="visibility:hidden">POINTS: 0</div>
+        <div class="play-card">
+            <div id="p1-wrong" class="wrong-x">X</div>
+            <div id="p1-game" style="display:none; width:100%; text-align:center;">
+                <button class="skip-btn" onmousedown="loadQuestion('p1')">SKIP</button><br>
+                <img id="p1-img" class="item-img" src="">
+                <div class="sentence" id="p1-sentence"></div>
+                <div class="drag-box" id="p1-drag"></div>
+            </div>
+            <div id="p1-lottery" class="lottery-num" style="font-size:100px; font-family:'Bungee';">?</div>
+        </div>
+    </div>
+
+    <div class="side side-p2" id="p2-area">
+        <div id="p2-score-ui" class="score-tag" style="visibility:hidden">POINTS: 0</div>
+        <div class="play-card">
+            <div id="p2-wrong" class="wrong-x">X</div>
+            <div id="p2-game" style="display:none; width:100%; text-align:center;">
+                <button class="skip-btn" onmousedown="loadQuestion('p2')">SKIP</button><br>
+                <img id="p2-img" class="item-img" src="">
+                <div class="sentence" id="p2-sentence"></div>
+                <div class="drag-box" id="p2-drag"></div>
+            </div>
+            <div id="p2-lottery" class="lottery-num" style="font-size:100px; font-family:'Bungee';">?</div>
+        </div>
+    </div>
+
+    <div class="controls" id="ui-controls" style="position: absolute; bottom: 30px; width: 100%; display: flex; justify-content: center; z-index: 200; gap: 40px;">
+        <button style="background:#32cd32; color:white; font-family:'Bungee'; padding:15px 30px; border-radius:50px; border:none; cursor:pointer;" onmousedown="runLottery('p1')">PICK P1</button>
+        <button id="start-btn" style="background:#ff4500; color:white; font-family:'Bungee'; padding:15px 30px; border-radius:50px; border:none; cursor:pointer; font-size:32px;" onmousedown="startGame()" disabled>START</button>
+        <button style="background:#32cd32; color:white; font-family:'Bungee'; padding:15px 30px; border-radius:50px; border:none; cursor:pointer;" onmousedown="runLottery('p2')">PICK P2</button>
+    </div>
+</div>
+
+<div id="results-screen">
+    <h1 id="winner-text" style="font-size: 80px; color: #ffcc00; margin-bottom: 10px;"></h1>
+    <div id="final-stats" style="font-size: 40px; line-height: 1.5; margin-bottom: 40px;"></div>
+    <button onmousedown="location.reload()" style="background:#ff4500; color:white; font-family:'Bungee'; padding:15px 30px; border-radius:50px; border:none; cursor:pointer; font-size:32px;">PLAY AGAIN</button>
+</div>
+
+<audio id="snd-drum" src="https://www.soundjay.com/misc/sounds/drum-roll-04.mp3" preload="auto"></audio>
+<audio id="snd-correct" src="correctanswer.mp4" preload="auto"></audio>
+<audio id="snd-wrong" src="wronganswer.mp4" preload="auto"></audio>
+<audio id="snd-greatjob" src="greatjob.mp4" preload="auto"></audio>
+
+<script>
+    let poolP1 = Array.from({length: 15}, (_, i) => i + 1);
+    let poolP2 = Array.from({length: 15}, (_, i) => i + 16);
+    let p1Picked = false, p2Picked = false;
+    let scores = { p1: 0, p2: 0 };
+    let gameActive = false;
+    let lastIndices = { p1: -1, p2: -1 };
+
+    const gameItems = [
+        { img: 'fragrantperfume_.png', verb: 'smells', adj: 'fragrant', opts: ['smells','fragrant','stinky','looks'] },
+        { img: 'frozenicecream_.png', verb: 'feels', adj: 'cold', opts: ['feels','cold','hot','tastes'] },
+        { img: 'hardcandy_.png', verb: 'feels', adj: 'hard', opts: ['feels','hard','soft','tastes'] },
+        { img: 'hotcoffee_.png', verb: 'smells', adj: 'good', opts: ['smells','good','stinky','tastes'] },
+        { img: 'hotnoodles_.png', verb: 'feels', adj: 'hot', opts: ['feels','hot','cold','smells'] },
+        { img: 'lemon_.png', verb: 'tastes', adj: 'sour', opts: ['tastes','sour','sweet','looks'] },
+        { img: 'loudalarm.png', verb: 'sounds', adj: 'loud', opts: ['sounds','loud','quiet','feels'] },
+        { img: 'loudspeaker_.png', verb: 'sounds', adj: 'loud', opts: ['sounds','loud','quiet','looks'] },
+        { img: 'bittermelon_.png', verb: 'tastes', adj: 'bitter', opts: ['tastes','bitter','sweet','smells'] },
+        { img: 'cola_.png', verb: 'tastes', adj: 'sweet', opts: ['tastes','sweet','sour','looks'] },
+        { img: 'sweetgrapes_.png', verb: 'looks', adj: 'round', opts: ['looks','round','square','feels'] },
+        { img: 'sweetorange_.png', verb: 'tastes', adj: 'sweet', opts: ['tastes','sweet','salty','looks'] },
+        { img: 'softteddybear_.png', verb: 'feels', adj: 'soft', opts: ['feels','soft','hard','sounds'] },
+        { img: 'spicychili.png', verb: 'tastes', adj: 'spicy', opts: ['tastes','spicy','sweet','smells'] },
+        { img: 'stinkytofu_.png', verb: 'smells', adj: 'stinky', opts: ['smells','stinky','fragrant','tastes'] },
+        { img: 'quietpark_.png', verb: 'sounds', adj: 'quiet', opts: ['sounds','quiet','noisy','looks'] },
+        { img: 'cake_.png', verb: 'tastes', adj: 'delicious', opts: ['tastes','delicious','salty','feels'] }
+    ];
+
+    function playSound(id) {
+        const sound = document.getElementById(id);
+        sound.pause(); sound.currentTime = 0;
+        sound.play().catch(e => {});
+    }
+
+    function runLottery(player) {
+        const pool = (player === 'p1') ? poolP1 : poolP2;
+        if (pool.length === 0) return;
+        playSound('snd-drum');
+        let counter = 0;
+        let interval = setInterval(() => {
+            document.getElementById(`${player}-lottery`).innerText = pool[Math.floor(Math.random() * pool.length)];
+            if (++counter > 15) {
+                clearInterval(interval);
+                let finalNum = pool[Math.floor(Math.random() * pool.length)];
+                document.getElementById(`${player}-lottery`).innerText = finalNum;
+                if (player === 'p1') p1Picked = finalNum; else p2Picked = finalNum;
+                if (p1Picked && p2Picked) document.getElementById('start-btn').disabled = false;
+            }
+        }, 80);
+    }
+
+    function startGame() {
+        poolP1 = poolP1.filter(n => n !== p1Picked);
+        poolP2 = poolP2.filter(n => n !== p2Picked);
+        document.getElementById('ui-controls').style.display = 'none';
+        document.getElementById('p1-lottery').style.display = 'none';
+        document.getElementById('p2-lottery').style.display = 'none';
+        document.querySelectorAll('.score-tag').forEach(el => el.style.visibility = 'visible');
+        document.getElementById('p1-game').style.display = 'block';
+        document.getElementById('p2-game').style.display = 'block';
+        document.getElementById('timer-display').style.display = 'block';
+        gameActive = true;
+        loadQuestion('p1'); loadQuestion('p2');
+        startTimer();
+    }
+
+    function loadQuestion(p) {
+        if (!gameActive) return;
+        let idx;
+        do { idx = Math.floor(Math.random() * gameItems.length); } while (idx === lastIndices[p]);
+        lastIndices[p] = idx;
+        const item = gameItems[idx];
+        const isVerbBlank = Math.random() > 0.5;
+        const correctAns = isVerbBlank ? item.verb : item.adj;
+        
+        document.getElementById(p + '-img').src = item.img;
+        let sentenceStr = isVerbBlank ? `It <span class="drop-zone"></span> ${item.adj}.` : `It ${item.verb} <span class="drop-zone"></span>.`;
+        document.getElementById(p + '-sentence').innerHTML = sentenceStr;
+        
+        const dragBox = document.getElementById(p + '-drag');
+        dragBox.innerHTML = '';
+        
+        let choices = [...new Set(item.opts)].sort(() => Math.random() - 0.5);
+        
+        choices.forEach(word => {
+            let div = document.createElement('div');
+            div.className = 'word';
+            div.innerText = word;
+            div.onmousedown = (e) => {
+                e.preventDefault();
+                if(word === correctAns) {
+                    playSound('snd-correct');
+                    scores[p]++;
+                    document.getElementById(`${p}-score-ui`).innerText = `POINTS: ${scores[p]}`;
+                    const dz = document.getElementById(p + '-sentence').querySelector('.drop-zone');
+                    dz.innerText = word;
+                    dz.style.color = "green";
+                    dz.style.borderBottom = "none";
+                    setTimeout(() => loadQuestion(p), 600);
+                } else {
+                    playSound('snd-wrong');
+                    const area = document.getElementById(p + '-area');
+                    const xLabel = document.getElementById(p + '-wrong');
+                    area.classList.add('frozen');
+                    xLabel.style.display = 'block';
+                    setTimeout(() => {
+                        area.classList.remove('frozen');
+                        xLabel.style.display = 'none';
+                    }, 3000);
+                }
+            };
+            dragBox.appendChild(div);
+        });
+    }
+
+    function startTimer() {
+        let timeLeft = 50;
+        let timerEl = document.getElementById('timer-display');
+        let container = document.getElementById('game-container');
+        let interval = setInterval(() => {
+            timeLeft--;
+            timerEl.innerText = timeLeft;
+            if (timeLeft <= 15) container.classList.add('shaking');
+            if (timeLeft <= 0) {
+                clearInterval(interval);
+                gameActive = false;
+                showWinner();
+            }
+        }, 1000);
+    }
+
+    function showWinner() {
+        playSound('snd-greatjob');
+        document.getElementById('results-screen').style.display = 'flex';
+        let winMsg = scores.p1 > scores.p2 ? `PLAYER ${p1Picked} WINS!` : (scores.p2 > scores.p1 ? `PLAYER ${p2Picked} WINS!` : "IT'S A TIE!");
+        document.getElementById('winner-text').innerText = winMsg;
+        document.getElementById('final-stats').innerHTML = `PLAYER ${p1Picked}: ${scores.p1} POINTS<br>PLAYER ${p2Picked}: ${scores.p2} POINTS`;
+    }
+</script>
+</body>
+</html>
